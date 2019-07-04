@@ -1,0 +1,66 @@
+version: '3'
+services:
+
+  #PHP
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: test-queo
+    container_name: queo-app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  #Nginx
+  webserver:
+    image: nginx:alpine
+    container_name: queo-webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+
+  #MySQL
+  db:
+    image: mysql:5.7.22
+    container_name: queo-db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: queo
+      MYSQL_ROOT_PASSWORD: queo2019
+      MYSQL_USER: dockerQueo
+      MYSQL_PASSWORD: queo2019
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+#Redes
+networks:
+  app-network:
+    driver: bridge
+#Volumenes
+volumes:
+  dbdata:
+    driver: local
