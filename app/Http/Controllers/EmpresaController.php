@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Empresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class EmpresaController extends Controller
 {
@@ -14,17 +16,9 @@ class EmpresaController extends Controller
      */
     public function index()
     {
-        //
-    }
+        $empresas = Empresa::all();
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
+        return $this->sendResponse($empresas, 'Todas Las Empresas');
     }
 
     /**
@@ -36,21 +30,25 @@ class EmpresaController extends Controller
     public function store(Request $request)
     {
 
-        $validator = Validator::make($request->all(), [
+        $inputs = $request->all();
+
+        $validator = Validator::make($inputs, [
             'name' => 'required',
             'email' => 'required|email|unique:empresas',
-            'logo' => 'require',
+            'logo' => 'required',
             'website' => 'required',
         ]);
 
         if ($validator->fails()) {
-            return redirect('empresa')
-                ->withErrors($validator)
-                ->withInput();
+            return $this->sendError('Error en la validacioin.', $validator->errors());
         }
 
-        
+        $path = $request->file('logo')->store('public');
 
+        $inputs['logo'] = $path;
+        $empresa = Empresa::create($inputs);
+
+        return $this->sendResponse($empresa, 'Empresa creada Exitosamente');
     }
 
     /**
@@ -61,18 +59,13 @@ class EmpresaController extends Controller
      */
     public function show($id)
     {
-        //
-    }
+        $empresa = Empresa::find($id);
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
+        if (is_null($empresa)) {
+            return $this->sendError('Empresa no encontrada.');
+        }
+
+        return $this->sendResponse($empresa, 'Empresa encontrada exitosamente.');
     }
 
     /**
@@ -82,9 +75,40 @@ class EmpresaController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Empresa $empresa)
     {
-        //
+        $validator = Validator::make($request->all(), [
+            'email' => 'email|unique:empresas,email,' . $empresa->id,
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError('Error en la validacion.', $validator->errors());
+        }
+
+        if ($request->has('name')) {
+            $empresa->name = $request->name;
+        }
+
+        if ($request->has('email')) {
+            $empresa->email = $request->email;
+        }
+
+        if ($request->has('website')) {
+            $empresa->website = $request->website;
+        }
+
+        if ($request->has('logo')) {
+            $path = $request->file('logo')->store('public');
+            $empresa->logo = $path;
+        }
+
+        if (!$empresa->isDirty()) {
+            return $this->sendError('Debes enviar almenos un campo diferente.', [], 422);
+        }
+
+        $empresa->save();
+
+        return $this->sendResponse($empresa, 'Empresa actualizada exitosamente');
     }
 
     /**
@@ -93,8 +117,9 @@ class EmpresaController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(Empresa $empresa)
     {
-        //
+        $empresa->delete();
+        return $this->sendResponse($empresa, 'Empresa eliminada exitosamente.');
     }
 }
